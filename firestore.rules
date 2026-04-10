@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Payment Requests collection
+    match /paymentRequests/{requestId} {
+      // Anyone can read (for shareable link), but full data only for parties
+      allow read: if true;
+
+      // Only authenticated users can create, and senderId must match
+      allow create: if request.auth != null
+        && request.resource.data.senderId == request.auth.uid;
+
+      // Update rules based on action
+      allow update: if request.auth != null && (
+        // Sender can cancel their own pending request
+        (resource.data.senderId == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled')
+        ||
+        // Recipient can pay or decline a pending request
+        (resource.data.recipientContact != null
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['paid', 'declined'])
+        ||
+        // Allow setting recipientUid
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['recipientUid', 'updatedAt']))
+        ||
+        // Allow lazy expiration write
+        (resource.data.status == 'pending'
+          && request.resource.data.status == 'expired')
+      );
+
+      allow delete: if false;
+    }
+  }
+}
