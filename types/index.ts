@@ -31,3 +31,9 @@ export interface CreateRequestInput {
   amountCents: number;
   note?: string;
 }
+
+export interface Wallet {
+  uid: string;
+  balanceCents: number;
+  updatedAt: Timestamp;
+}

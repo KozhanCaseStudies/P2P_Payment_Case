@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 export async function PATCH(
   req: NextRequest,
@@ -79,15 +79,64 @@ export async function PATCH(
     );
   }
 
-  const update: Record<string, unknown> = {
-    status: action === 'pay' ? 'paid' : 'declined',
-    updatedAt: Timestamp.now(),
-    recipientUid: uid,
-  };
-  if (action === 'pay') {
-    update.paidAt = Timestamp.now();
+  if (action === 'decline') {
+    await ref.update({
+      status: 'declined',
+      updatedAt: Timestamp.now(),
+      recipientUid: uid,
+    });
+    return NextResponse.json({ success: true });
   }
 
-  await ref.update(update);
-  return NextResponse.json({ success: true });
+  // action === 'pay' — wallet transaction
+  const payerWalletRef = adminDb.collection('wallets').doc(uid);
+  const senderWalletRef = adminDb.collection('wallets').doc(data.senderId);
+  const amountCents = data.amountCents;
+
+  try {
+    await adminDb.runTransaction(async (tx) => {
+      const payerSnap = await tx.get(payerWalletRef);
+      const payerBalance = payerSnap.exists ? payerSnap.data()!.balanceCents : 0;
+
+      if (payerBalance < amountCents) {
+        throw new Error('Insufficient balance. Please add funds.');
+      }
+
+      // Deduct from payer
+      if (payerSnap.exists) {
+        tx.update(payerWalletRef, {
+          balanceCents: FieldValue.increment(-amountCents),
+          updatedAt: Timestamp.now(),
+        });
+      }
+
+      // Add to sender
+      const senderSnap = await tx.get(senderWalletRef);
+      if (senderSnap.exists) {
+        tx.update(senderWalletRef, {
+          balanceCents: FieldValue.increment(amountCents),
+          updatedAt: Timestamp.now(),
+        });
+      } else {
+        tx.set(senderWalletRef, {
+          uid: data.senderId,
+          balanceCents: amountCents,
+          updatedAt: Timestamp.now(),
+        });
+      }
+
+      // Update request status
+      tx.update(ref, {
+        status: 'paid',
+        paidAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        recipientUid: uid,
+      });
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Payment failed. Please try again.';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }
