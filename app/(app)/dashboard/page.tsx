@@ -6,13 +6,16 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOutgoingRequests, useIncomingRequests } from '@/hooks/useRequests';
+import { useWallet } from '@/hooks/useWallet';
 import { PaymentRequest, RequestStatus } from '@/types';
+import { formatCurrency } from '@/lib/utils';
 import { RequestCard } from '@/components/RequestCard';
+import { AddFundsDialog } from '@/components/AddFundsDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut } from 'lucide-react';
+import { Plus, Search, LogOut, Wallet } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_OPTIONS: { label: string; value: 'all' | RequestStatus }[] = [
@@ -58,7 +61,9 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | RequestStatus>('all');
+  const [addFundsOpen, setAddFundsOpen] = useState(false);
 
+  const { wallet } = useWallet(user?.uid ?? null);
   const { requests: outgoing, loading: outLoading } = useOutgoingRequests(user?.uid ?? null);
   const { requests: incoming, loading: inLoading } = useIncomingRequests(
     user?.email ?? null,
@@ -92,6 +97,16 @@ export default function DashboardPage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">PayRequest</h1>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setAddFundsOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors"
+              title="Add Funds"
+            >
+              <Wallet className="w-4 h-4 text-green-700" />
+              <span className={`text-sm font-semibold ${wallet && wallet.balanceCents > 0 ? 'text-green-700' : 'text-gray-500'}`}>
+                {wallet ? formatCurrency(wallet.balanceCents) : '...'}
+              </span>
+            </button>
             <Link href="/request/new">
               <Button size="sm" className="gap-1">
                 <Plus className="w-4 h-4" /> New Request
@@ -107,6 +122,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
+      <AddFundsDialog open={addFundsOpen} onOpenChange={setAddFundsOpen} />
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         <div className="flex gap-2">

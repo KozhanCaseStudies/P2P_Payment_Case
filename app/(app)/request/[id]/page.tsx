@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { getRequest } from '@/lib/firebase/requests';
 import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
 import { PaymentRequest } from '@/types';
+import { AddFundsDialog } from '@/components/AddFundsDialog';
 import { formatCurrency, formatDate, isExpired } from '@/lib/utils';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ExpirationCountdown } from '@/components/ExpirationCountdown';
@@ -34,6 +36,8 @@ export default function RequestDetailPage() {
   const [confirmAction, setConfirmAction] = useState<'cancel' | 'decline' | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [paid, setPaid] = useState(false);
+  const [addFundsOpen, setAddFundsOpen] = useState(false);
+  const { wallet } = useWallet(user?.uid ?? null);
 
   useEffect(() => {
     getRequest(id).then((r) => {
@@ -252,36 +256,56 @@ export default function RequestDetailPage() {
             )}
 
             {/* Recipient: pay + decline */}
-            {isRecipient && !isSender && isPending && !expired && (
-              <div className="flex flex-col gap-2 pt-2">
-                <Button
-                  className="w-full"
-                  size="lg"
-                  disabled={!!actionLoading}
-                  onClick={handlePay}
-                >
-                  {actionLoading === 'pay' ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Processing payment...
+            {isRecipient && !isSender && isPending && !expired && (() => {
+              const hasSufficientFunds = wallet && wallet.balanceCents >= req.amountCents;
+              return (
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex items-center justify-between text-sm px-1">
+                    <span className="text-gray-500">Your balance:</span>
+                    <span className={`font-semibold ${hasSufficientFunds ? 'text-green-700' : 'text-red-600'}`}>
+                      {wallet ? formatCurrency(wallet.balanceCents) : '...'}
                     </span>
+                  </div>
+                  {hasSufficientFunds ? (
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      disabled={!!actionLoading}
+                      onClick={handlePay}
+                    >
+                      {actionLoading === 'pay' ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Processing payment...
+                        </span>
+                      ) : (
+                        `Pay ${formatCurrency(req.amountCents)}`
+                      )}
+                    </Button>
                   ) : (
-                    `Pay ${formatCurrency(req.amountCents)}`
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                      <p className="text-sm text-amber-800 mb-2">Insufficient balance. Please add funds.</p>
+                      <Button size="sm" onClick={() => setAddFundsOpen(true)}>
+                        Add Funds
+                      </Button>
+                    </div>
                   )}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                  disabled={!!actionLoading}
-                  onClick={() => setConfirmAction('decline')}
-                >
-                  Decline
-                </Button>
-              </div>
-            )}
+                  <Button
+                    variant="outline"
+                    className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                    disabled={!!actionLoading}
+                    onClick={() => setConfirmAction('decline')}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
+
+      <AddFundsDialog open={addFundsOpen} onOpenChange={setAddFundsOpen} />
 
       <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <DialogContent>
