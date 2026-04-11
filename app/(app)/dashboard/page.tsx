@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Wallet, Send } from 'lucide-react';
+import { Plus, Search, LogOut, Wallet, Send, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_OPTIONS: { label: string; value: 'all' | RequestStatus }[] = [
@@ -122,6 +122,9 @@ export default function DashboardPage() {
               <Button size="sm" className="gap-1">
                 <Plus className="w-4 h-4" /> Request
               </Button>
+            </Link>
+            <Link href="/admin" className="text-gray-400 hover:text-gray-700 p-1" title="Admin Panel">
+              <Settings className="w-4 h-4" />
             </Link>
             <button
               onClick={handleSignOut}
