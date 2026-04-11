@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { ContactPicker } from '@/components/ContactPicker';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check, Send } from 'lucide-react';
 
 interface FormErrors {
   recipient?: string;
@@ -33,6 +33,7 @@ export default function SendMoneyPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
+  const [transferState, setTransferState] = useState<'idle' | 'sending' | 'success'>('idle');
 
   if (loading) {
     return (
@@ -96,6 +97,7 @@ export default function SendMoneyPage() {
     if (!validateForm()) return;
 
     setSubmitting(true);
+    setTransferState('sending');
     try {
       const token = await auth.currentUser!.getIdToken();
       const res = await fetch('/api/transfers', {
@@ -114,16 +116,54 @@ export default function SendMoneyPage() {
       if (!res.ok) {
         const data = await res.json();
         toast.error(data.error ?? 'Something went wrong. Please try again.');
+        setTransferState('idle');
         return;
       }
 
-      toast.success(`Sent ${formatCurrency(amountCents)}!`);
-      router.push('/dashboard');
+      // Show success animation for 2 seconds, then redirect
+      setTransferState('success');
+      setTimeout(() => {
+        toast.success(`Sent ${formatCurrency(amountCents)}!`);
+        router.push('/dashboard');
+      }, 2000);
     } catch {
       toast.error('Something went wrong. Please check your connection.');
+      setTransferState('idle');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (transferState !== 'idle') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          {transferState === 'sending' ? (
+            <>
+              <div className="relative w-20 h-20 mx-auto mb-6">
+                <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
+                <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Send className="w-7 h-7 text-blue-600 animate-pulse" />
+                </div>
+              </div>
+              <p className="text-lg font-semibold text-gray-900">Sending {formatCurrency(amountCents)}</p>
+              <p className="text-sm text-gray-500 mt-1">to {recipient}</p>
+            </>
+          ) : (
+            <>
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center animate-[scale-in_0.3s_ease-out]">
+                <Check className="w-10 h-10 text-green-600" strokeWidth={3} />
+              </div>
+              <p className="text-lg font-semibold text-gray-900">Money Sent!</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {formatCurrency(amountCents)} to {recipient}
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
