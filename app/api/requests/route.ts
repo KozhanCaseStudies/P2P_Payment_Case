@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { validateContact, validateAmountCents, validateNote, validateEmail } from '@/lib/validations';
 import { Timestamp } from 'firebase-admin/firestore';
+import { autoSaveContact, createNotification, formatAmountForNotification } from '@/lib/server/helpers';
 
 function getExpiresAt(createdAt: Date): Date {
   return new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -83,6 +84,27 @@ export async function POST(req: NextRequest) {
       expiresAt: Timestamp.fromDate(expiresAt),
       updatedAt: Timestamp.fromDate(now),
     });
+
+    // Auto-save contact (non-blocking)
+    autoSaveContact(uid, recipientContact).catch(() => {});
+
+    // Notify recipient if they have an account
+    if (validateEmail(recipientContact)) {
+      const recipientSnap = await adminDb.collection('users')
+        .where('email', '==', recipientContact.toLowerCase())
+        .limit(1)
+        .get();
+      if (!recipientSnap.empty) {
+        createNotification({
+          recipientUid: recipientSnap.docs[0].id,
+          type: 'request_received',
+          title: 'Payment Request',
+          body: `${userName} is requesting ${formatAmountForNotification(amountCents)}`,
+          amountCents,
+          relatedId: ref.id,
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json(
       { id: ref.id, shareableLink: `${appUrl}/request/${ref.id}` },

@@ -49,3 +49,32 @@ export interface Transfer {
   note?: string;
   createdAt: Timestamp;
 }
+
+export interface Contact {
+  id: string;
+  ownerUid: string;
+  email: string;
+  displayName: string;
+  isFavorite: boolean;
+  lastUsedAt: Timestamp;
+  createdAt: Timestamp;
+}
+
+export type NotificationType =
+  | 'request_received'
+  | 'request_paid'
+  | 'request_declined'
+  | 'request_cancelled'
+  | 'transfer_received';
+
+export interface Notification {
+  id: string;
+  recipientUid: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  amountCents: number;
+  relatedId: string;
+  read: boolean;
+  createdAt: Timestamp;
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { validateContact, validateAmountCents, validateNote, validateEmail } from '@/lib/validations';
+import { autoSaveContact, createNotification, formatAmountForNotification } from '@/lib/server/helpers';
 
 export async function POST(req: NextRequest) {
   const authorization = req.headers.get('authorization');
@@ -138,6 +139,21 @@ export async function POST(req: NextRequest) {
         createdAt: Timestamp.now(),
       });
     });
+
+    // Auto-save contact (non-blocking)
+    autoSaveContact(uid, recipientContact).catch(() => {});
+
+    // Create notification for recipient (non-blocking)
+    if (recipientUid) {
+      createNotification({
+        recipientUid,
+        type: 'transfer_received',
+        title: 'Money Received',
+        body: `${userName} sent you ${formatAmountForNotification(amountCents)}`,
+        amountCents,
+        relatedId: transferRef.id,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ id: transferRef.id }, { status: 201 });
   } catch (err) {

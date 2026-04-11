@@ -13,6 +13,8 @@ import { formatCurrency } from '@/lib/utils';
 import { RequestCard } from '@/components/RequestCard';
 import { TransferCard } from '@/components/TransferCard';
 import { AddFundsDialog } from '@/components/AddFundsDialog';
+import { NotificationBell } from '@/components/NotificationBell';
+import { SummaryStats } from '@/components/SummaryStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -123,6 +125,7 @@ export default function DashboardPage() {
                 <Plus className="w-4 h-4" /> Request
               </Button>
             </Link>
+            <NotificationBell userId={user.uid} />
             <Link href="/admin" className="text-gray-400 hover:text-gray-700 p-1" title="Admin Panel">
               <Settings className="w-4 h-4" />
             </Link>
@@ -159,6 +162,19 @@ export default function DashboardPage() {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        </div>
+
+        <SummaryStats
+          transfers={transfers}
+          outgoingRequests={outgoing}
+          incomingRequests={incoming}
+          currentUserEmail={user.email ?? ''}
+        />
+
+        <div className="flex justify-end">
+          <Link href="/history" className="text-xs text-blue-600 hover:text-blue-800">
+            View full transaction history →
+          </Link>
         </div>
 
         <Tabs defaultValue="outgoing">

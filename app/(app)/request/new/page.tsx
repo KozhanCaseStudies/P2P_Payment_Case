@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { ContactPicker } from '@/components/ContactPicker';
 import { ArrowLeft } from 'lucide-react';
 
 interface FormErrors {
@@ -144,9 +145,18 @@ export default function NewRequestPage() {
                 }}
                 className={errors.recipient ? 'border-red-500' : ''}
               />
-              <p className="mt-1 text-xs text-gray-400">
-                Enter an email address or E.164 phone number
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-gray-400">
+                  Enter an email address or E.164 phone number
+                </p>
+                <ContactPicker
+                  userId={user.uid}
+                  onSelect={(email) => {
+                    setRecipient(email);
+                    if (errors.recipient) setErrors((p) => ({ ...p, recipient: undefined }));
+                  }}
+                />
+              </div>
               {errors.recipient && (
                 <p className="mt-1 text-sm text-red-600">{errors.recipient}</p>
               )}
