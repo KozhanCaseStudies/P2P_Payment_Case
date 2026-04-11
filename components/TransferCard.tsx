@@ -82,10 +82,11 @@ export function TransferCard({
           </p>
           <button
             onClick={handleFavorite}
-            className="text-gray-300 hover:text-amber-500 transition-colors p-0.5"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors text-xs font-medium"
             title="Save as quick action"
           >
-            <Bookmark className="w-4 h-4" />
+            <Bookmark className="w-3.5 h-3.5" />
+            <span>Save</span>
           </button>
         </div>
       </div>
