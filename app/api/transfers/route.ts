@@ -95,22 +95,24 @@ export async function POST(req: NextRequest) {
 
   try {
     await adminDb.runTransaction(async (tx) => {
-      const senderSnap = await tx.get(senderWalletRef);
-      const senderBalance = senderSnap.exists ? senderSnap.data()!.balanceCents : 0;
+      // All reads first
+      const recipientWalletRef = adminDb.collection('wallets').doc(recipientUid);
+      const [senderSnap, recipientSnap] = await Promise.all([
+        tx.get(senderWalletRef),
+        tx.get(recipientWalletRef),
+      ]);
 
+      const senderBalance = senderSnap.exists ? senderSnap.data()!.balanceCents : 0;
       if (senderBalance < amountCents) {
         throw new Error('Insufficient balance. Please add funds.');
       }
 
-      // Deduct from sender
+      // All writes after reads
       tx.update(senderWalletRef, {
         balanceCents: FieldValue.increment(-amountCents),
         updatedAt: Timestamp.now(),
       });
 
-      // Credit recipient
-      const recipientWalletRef = adminDb.collection('wallets').doc(recipientUid);
-      const recipientSnap = await tx.get(recipientWalletRef);
       if (recipientSnap.exists) {
         tx.update(recipientWalletRef, {
           balanceCents: FieldValue.increment(amountCents),
