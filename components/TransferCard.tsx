@@ -2,7 +2,9 @@
 
 import { Transfer } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { auth } from '@/lib/firebase/client';
+import { ArrowUpRight, ArrowDownLeft, Bookmark } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function TransferCard({
   transfer,
@@ -12,6 +14,36 @@ export function TransferCard({
   currentUserEmail: string;
 }) {
   const isSent = transfer.senderEmail.toLowerCase() === currentUserEmail.toLowerCase();
+
+  async function handleFavorite() {
+    try {
+      const token = await auth.currentUser!.getIdToken();
+      const res = await fetch('/api/favorite-transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: 'transfer',
+          recipientContact: isSent ? transfer.recipientContact : transfer.senderEmail,
+          recipientName: isSent ? transfer.recipientContact.split('@')[0] : transfer.senderName,
+          amountCents: transfer.amountCents,
+          note: transfer.note || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error ?? 'Failed to save favorite');
+        return;
+      }
+
+      toast.success('Saved to quick actions!');
+    } catch {
+      toast.error('Something went wrong');
+    }
+  }
 
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-4">
@@ -44,10 +76,17 @@ export function TransferCard({
             <p className="text-xs text-gray-400 mt-1">{formatDate(transfer.createdAt)}</p>
           </div>
         </div>
-        <div className="text-right shrink-0">
+        <div className="flex flex-col items-end gap-2 shrink-0">
           <p className={`text-lg font-bold ${isSent ? 'text-red-600' : 'text-green-600'}`}>
             {isSent ? '-' : '+'}{formatCurrency(transfer.amountCents)}
           </p>
+          <button
+            onClick={handleFavorite}
+            className="text-gray-300 hover:text-amber-500 transition-colors p-0.5"
+            title="Save as quick action"
+          >
+            <Bookmark className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

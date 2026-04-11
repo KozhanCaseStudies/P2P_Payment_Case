@@ -66,6 +66,14 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    // Favorite Transactions collection
+    match /favoriteTransactions/{favId} {
+      allow read: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.ownerUid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+      allow update: if false;
+    }
+
     // Transfers collection
     match /transfers/{transferId} {
       allow read: if request.auth != null && (

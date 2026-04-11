@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
@@ -24,6 +24,7 @@ interface FormErrors {
 
 export default function SendMoneyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
   const { wallet } = useWallet(user?.uid ?? null);
   const [recipient, setRecipient] = useState('');
@@ -34,6 +35,22 @@ export default function SendMoneyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [transferState, setTransferState] = useState<'idle' | 'sending' | 'success'>('idle');
+
+  // Pre-fill from URL params (quick action repeat)
+  useEffect(() => {
+    const to = searchParams.get('to');
+    const amount = searchParams.get('amount');
+    const prefillNote = searchParams.get('note');
+    if (to) setRecipient(to);
+    if (amount) {
+      const cents = parseInt(amount, 10);
+      if (!isNaN(cents) && cents > 0) {
+        setAmountCents(cents);
+        setAmountDisplay((cents / 100).toFixed(2));
+      }
+    }
+    if (prefillNote) setNote(prefillNote);
+  }, [searchParams]);
 
   if (loading) {
     return (

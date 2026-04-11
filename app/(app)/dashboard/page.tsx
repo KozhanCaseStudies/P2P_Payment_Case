@@ -15,6 +15,7 @@ import { TransferCard } from '@/components/TransferCard';
 import { AddFundsDialog } from '@/components/AddFundsDialog';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SummaryStats } from '@/components/SummaryStats';
+import { QuickActions } from '@/components/QuickActions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -170,6 +171,8 @@ export default function DashboardPage() {
           incomingRequests={incoming}
           currentUserEmail={user.email ?? ''}
         />
+
+        <QuickActions userId={user.uid} />
 
         <div className="flex justify-end">
           <Link href="/history" className="text-xs text-blue-600 hover:text-blue-800">

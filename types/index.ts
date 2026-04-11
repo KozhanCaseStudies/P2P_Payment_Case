@@ -67,6 +67,17 @@ export type NotificationType =
   | 'request_cancelled'
   | 'transfer_received';
 
+export interface FavoriteTransaction {
+  id: string;
+  ownerUid: string;
+  type: 'transfer' | 'request';
+  recipientContact: string;
+  recipientName: string;
+  amountCents: number;
+  note?: string;
+  createdAt: Timestamp;
+}
+
 export interface Notification {
   id: string;
   recipientUid: string;

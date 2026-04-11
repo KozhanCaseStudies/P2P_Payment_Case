@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { validateContact, validateAmountCents } from '@/lib/validations';
@@ -22,11 +22,28 @@ interface FormErrors {
 
 export default function NewRequestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
   const [recipient, setRecipient] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
   const [amountCents, setAmountCents] = useState(0);
   const [note, setNote] = useState('');
+
+  // Pre-fill from URL params (quick action repeat)
+  useEffect(() => {
+    const to = searchParams.get('to');
+    const amount = searchParams.get('amount');
+    const prefillNote = searchParams.get('note');
+    if (to) setRecipient(to);
+    if (amount) {
+      const cents = parseInt(amount, 10);
+      if (!isNaN(cents) && cents > 0) {
+        setAmountCents(cents);
+        setAmountDisplay((cents / 100).toFixed(2));
+      }
+    }
+    if (prefillNote) setNote(prefillNote);
+  }, [searchParams]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
