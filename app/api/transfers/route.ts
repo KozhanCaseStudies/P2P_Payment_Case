@@ -64,16 +64,33 @@ export async function POST(req: NextRequest) {
   const senderWalletRef = adminDb.collection('wallets').doc(uid);
   const transferRef = adminDb.collection('transfers').doc();
 
-  // Find recipient UID by email (if they have an account)
-  let recipientUid: string | undefined;
+  // Find recipient — must be a registered user
+  let recipientUid: string;
   if (validateEmail(recipientContact)) {
     const usersSnap = await adminDb.collection('users')
       .where('email', '==', recipientContact.toLowerCase())
       .limit(1)
       .get();
-    if (!usersSnap.empty) {
-      recipientUid = usersSnap.docs[0].id;
+    if (usersSnap.empty) {
+      return NextResponse.json(
+        { error: 'This user is not registered on PayRequest. You can only send money to registered users.' },
+        { status: 404 }
+      );
     }
+    recipientUid = usersSnap.docs[0].id;
+  } else {
+    // Phone number — look up by phone
+    const usersSnap = await adminDb.collection('users')
+      .where('phone', '==', recipientContact)
+      .limit(1)
+      .get();
+    if (usersSnap.empty) {
+      return NextResponse.json(
+        { error: 'This user is not registered on PayRequest. You can only send money to registered users.' },
+        { status: 404 }
+      );
+    }
+    recipientUid = usersSnap.docs[0].id;
   }
 
   try {
@@ -92,21 +109,19 @@ export async function POST(req: NextRequest) {
       });
 
       // Credit recipient
-      if (recipientUid) {
-        const recipientWalletRef = adminDb.collection('wallets').doc(recipientUid);
-        const recipientSnap = await tx.get(recipientWalletRef);
-        if (recipientSnap.exists) {
-          tx.update(recipientWalletRef, {
-            balanceCents: FieldValue.increment(amountCents),
-            updatedAt: Timestamp.now(),
-          });
-        } else {
-          tx.set(recipientWalletRef, {
-            uid: recipientUid,
-            balanceCents: amountCents,
-            updatedAt: Timestamp.now(),
-          });
-        }
+      const recipientWalletRef = adminDb.collection('wallets').doc(recipientUid);
+      const recipientSnap = await tx.get(recipientWalletRef);
+      if (recipientSnap.exists) {
+        tx.update(recipientWalletRef, {
+          balanceCents: FieldValue.increment(amountCents),
+          updatedAt: Timestamp.now(),
+        });
+      } else {
+        tx.set(recipientWalletRef, {
+          uid: recipientUid,
+          balanceCents: amountCents,
+          updatedAt: Timestamp.now(),
+        });
       }
 
       // Create transfer document
@@ -115,7 +130,7 @@ export async function POST(req: NextRequest) {
         senderEmail: userEmail,
         senderName: userName,
         recipientContact,
-        ...(recipientUid ? { recipientUid } : {}),
+        recipientUid,
         amountCents,
         ...(note ? { note } : {}),
         createdAt: Timestamp.now(),
