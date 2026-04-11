@@ -37,3 +37,15 @@ export interface Wallet {
   balanceCents: number;
   updatedAt: Timestamp;
 }
+
+export interface Transfer {
+  id: string;
+  senderId: string;
+  senderEmail: string;
+  senderName: string;
+  recipientContact: string;
+  recipientUid?: string;
+  amountCents: number;
+  note?: string;
+  createdAt: Timestamp;
+}
