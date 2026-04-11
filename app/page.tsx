@@ -29,6 +29,13 @@ export default function HomePage() {
               displayName: (result.user.email ?? email)!.split('@')[0],
               createdAt: Timestamp.now(),
             });
+            // Auto-create wallet with 0 balance
+            const walletRef = doc(db, 'wallets', result.user.uid);
+            await setDoc(walletRef, {
+              uid: result.user.uid,
+              balanceCents: 0,
+              updatedAt: Timestamp.now(),
+            });
           }
           const redirectTo = window.localStorage.getItem('redirectAfterLogin') ?? '/dashboard';
           window.localStorage.removeItem('redirectAfterLogin');
