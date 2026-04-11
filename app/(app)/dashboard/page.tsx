@@ -6,16 +6,18 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOutgoingRequests, useIncomingRequests } from '@/hooks/useRequests';
+import { useTransfers } from '@/hooks/useTransfers';
 import { useWallet } from '@/hooks/useWallet';
 import { PaymentRequest, RequestStatus } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { RequestCard } from '@/components/RequestCard';
+import { TransferCard } from '@/components/TransferCard';
 import { AddFundsDialog } from '@/components/AddFundsDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Wallet } from 'lucide-react';
+import { Plus, Search, LogOut, Wallet, Send } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_OPTIONS: { label: string; value: 'all' | RequestStatus }[] = [
@@ -69,6 +71,10 @@ export default function DashboardPage() {
     user?.email ?? null,
     user?.uid ?? null
   );
+  const { transfers, loading: transfersLoading } = useTransfers(
+    user?.email ?? null,
+    user?.uid ?? null
+  );
 
   if (authLoading) {
     return (
@@ -107,9 +113,14 @@ export default function DashboardPage() {
                 {wallet ? formatCurrency(wallet.balanceCents) : '...'}
               </span>
             </button>
+            <Link href="/send">
+              <Button size="sm" variant="outline" className="gap-1">
+                <Send className="w-4 h-4" /> Send
+              </Button>
+            </Link>
             <Link href="/request/new">
               <Button size="sm" className="gap-1">
-                <Plus className="w-4 h-4" /> New Request
+                <Plus className="w-4 h-4" /> Request
               </Button>
             </Link>
             <button
@@ -165,6 +176,14 @@ export default function DashboardPage() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1">
+              Activity
+              {transfers.length > 0 && (
+                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
+                  {transfers.length}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="outgoing" className="space-y-3 mt-4">
@@ -201,6 +220,23 @@ export default function DashboardPage() {
               </div>
             ) : (
               filteredIncoming.map((r) => <RequestCard key={r.id} request={r} variant="incoming" />)
+            )}
+          </TabsContent>
+
+          <TabsContent value="activity" className="space-y-3 mt-4">
+            {transfersLoading ? (
+              Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
+            ) : transfers.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <p className="mb-3">No transfers yet.</p>
+                <Link href="/send">
+                  <Button variant="outline" size="sm">Send Money →</Button>
+                </Link>
+              </div>
+            ) : (
+              transfers.map((t) => (
+                <TransferCard key={t.id} transfer={t} currentUserEmail={user.email ?? ''} />
+              ))
             )}
           </TabsContent>
         </Tabs>
