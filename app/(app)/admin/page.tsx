@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCurrency, parseCurrencyInput } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import { useAmountInput } from '@/hooks/useAmountInput';
 import { validateEmail } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ArrowLeft, Plus, UserPlus, Wallet, Users, RefreshCw } from 'lucide-react';
+import { ArrowLeft, UserPlus, Wallet, Users, RefreshCw, X, Check } from 'lucide-react';
 
 interface AdminUser {
   uid: string;
@@ -26,18 +27,14 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
 
-  // Create user form
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
-  const [newBalanceDisplay, setNewBalanceDisplay] = useState('');
-  const [newBalanceCents, setNewBalanceCents] = useState(0);
+  const newBalanceInput = useAmountInput();
   const [creating, setCreating] = useState(false);
 
-  // Set balance
   const [editingUid, setEditingUid] = useState<string | null>(null);
-  const [balanceDisplay, setBalanceDisplay] = useState('');
-  const [balanceCents, setBalanceCents] = useState(0);
+  const editBalanceInput = useAmountInput();
   const [settingBalance, setSettingBalance] = useState(false);
 
   const fetchUsers = useCallback(async () => {
@@ -65,7 +62,7 @@ export default function AdminPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -94,7 +91,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           email: newEmail.trim(),
           displayName: newName.trim() || undefined,
-          balanceCents: newBalanceCents > 0 ? newBalanceCents : undefined,
+          balanceCents: newBalanceInput.cents > 0 ? newBalanceInput.cents : undefined,
         }),
       });
 
@@ -107,8 +104,7 @@ export default function AdminPage() {
       toast.success(`User ${data.email} created!`);
       setNewEmail('');
       setNewName('');
-      setNewBalanceDisplay('');
-      setNewBalanceCents(0);
+      newBalanceInput.setAmount(0);
       setShowCreateForm(false);
       fetchUsers();
     } catch {
@@ -119,6 +115,7 @@ export default function AdminPage() {
   }
 
   async function handleSetBalance(uid: string) {
+    const cents = editBalanceInput.cents;
     setSettingBalance(true);
     try {
       const token = await auth.currentUser!.getIdToken();
@@ -128,7 +125,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ uid, balanceCents }),
+        body: JSON.stringify({ uid, balanceCents: cents }),
       });
 
       const data = await res.json();
@@ -137,10 +134,9 @@ export default function AdminPage() {
         return;
       }
 
-      toast.success(`Balance updated to ${formatCurrency(balanceCents)}`);
+      toast.success(`Balance updated to ${formatCurrency(cents)}`);
       setEditingUid(null);
-      setBalanceDisplay('');
-      setBalanceCents(0);
+      editBalanceInput.setAmount(0);
       fetchUsers();
     } catch {
       toast.error('Something went wrong');
@@ -150,19 +146,21 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
 
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-gray-700" />
-            <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="w-4.5 h-4.5 text-primary" />
+            </div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Admin Panel</h1>
           </div>
           <div className="flex gap-2">
             <Button
@@ -170,76 +168,75 @@ export default function AdminPage() {
               size="sm"
               onClick={fetchUsers}
               disabled={loadingUsers}
-              className="gap-1"
+              className="gap-1.5 border-border"
             >
-              <RefreshCw className={`w-4 h-4 ${loadingUsers ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingUsers ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button
               size="sm"
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="gap-1"
+              className="gap-1.5 font-display font-semibold"
             >
-              <UserPlus className="w-4 h-4" />
-              New User
+              {showCreateForm ? <X className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+              {showCreateForm ? 'Cancel' : 'New User'}
             </Button>
           </div>
         </div>
 
         {showCreateForm && (
-          <div className="bg-white rounded-xl border border-gray-100 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Create New User</h2>
+          <div className="bg-card border border-border rounded-2xl p-6 mb-5 animate-fade-up">
+            <h2 className="font-display text-lg font-bold text-foreground mb-5">Create New User</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                  Email <span className="text-destructive">*</span>
                 </label>
                 <Input
                   type="email"
                   placeholder="user@example.com"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
+                  className="bg-input border-border"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Display Name <span className="text-gray-400 font-normal">(optional)</span>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                  Display Name <span className="text-muted-foreground font-normal">(optional)</span>
                 </label>
                 <Input
                   type="text"
                   placeholder="John Doe"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
+                  className="bg-input border-border"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Initial Balance <span className="text-gray-400 font-normal">(optional)</span>
+                <label className="block text-sm font-medium text-foreground/80 mb-1.5">
+                  Initial Balance <span className="text-muted-foreground font-normal">(optional)</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-                    $
-                  </span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
                   <Input
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
-                    value={newBalanceDisplay}
-                    onChange={(e) => {
-                      setNewBalanceDisplay(e.target.value);
-                      setNewBalanceCents(parseCurrencyInput(e.target.value));
-                    }}
-                    className="pl-7"
+                    value={newBalanceInput.display}
+                    onChange={newBalanceInput.handleChange}
+                    onBlur={newBalanceInput.handleBlur}
+                    className="pl-7 bg-input border-border font-numeric"
                   />
                 </div>
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button type="submit" disabled={creating} className="gap-1">
+              <div className="flex gap-2 pt-1">
+                <Button type="submit" disabled={creating} className="gap-1.5 font-display font-semibold">
                   {creating ? 'Creating...' : 'Create User'}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
+                  className="border-border"
                   onClick={() => setShowCreateForm(false)}
                 >
                   Cancel
@@ -249,42 +246,43 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <p className="text-sm text-gray-500">
-              {loadingUsers ? 'Loading...' : `${users.length} registered user${users.length !== 1 ? 's' : ''}`}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {loadingUsers ? 'Loading...' : (
+                <span>
+                  <span className="font-semibold text-foreground">{users.length}</span>
+                  {' '}registered user{users.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </p>
           </div>
 
           {loadingUsers ? (
-            <div className="p-8 text-center">
-              <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className="p-10 text-center">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
           ) : users.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
+            <div className="p-10 text-center text-muted-foreground text-sm">
               No users found.
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-border/50">
               {users.map((u) => (
-                <div key={u.uid} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
+                <div key={u.uid} className="px-6 py-4 hover:bg-accent/30 transition-colors">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 truncate">{u.displayName}</p>
-                      <p className="text-sm text-gray-500 truncate">{u.email}</p>
+                      <p className="font-semibold text-foreground truncate">{u.displayName}</p>
+                      <p className="text-sm text-muted-foreground truncate">{u.email}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right">
-                        <div className="flex items-center gap-1">
-                          <Wallet className="w-3.5 h-3.5 text-gray-400" />
-                          <span
-                            className={`text-sm font-semibold ${
-                              u.balanceCents > 0 ? 'text-green-700' : 'text-gray-400'
-                            }`}
-                          >
-                            {formatCurrency(u.balanceCents)}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 text-muted-foreground/60" />
+                        <span className={`font-numeric text-sm font-bold ${
+                          u.balanceCents > 0 ? 'text-emerald-400' : 'text-muted-foreground'
+                        }`}>
+                          {formatCurrency(u.balanceCents)}
+                        </span>
                       </div>
                       <Button
                         variant="outline"
@@ -294,12 +292,10 @@ export default function AdminPage() {
                             setEditingUid(null);
                           } else {
                             setEditingUid(u.uid);
-                            const display = (u.balanceCents / 100).toFixed(2);
-                            setBalanceDisplay(display);
-                            setBalanceCents(u.balanceCents);
+                            editBalanceInput.setAmount(u.balanceCents);
                           }
                         }}
-                        className="text-xs"
+                        className="text-xs border-border"
                       >
                         {editingUid === u.uid ? 'Cancel' : 'Set Balance'}
                       </Button>
@@ -307,27 +303,26 @@ export default function AdminPage() {
                   </div>
 
                   {editingUid === u.uid && (
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-3 flex items-center gap-2 animate-fade-up">
                       <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">
-                          $
-                        </span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">$</span>
                         <Input
                           type="text"
                           inputMode="decimal"
-                          value={balanceDisplay}
-                          onChange={(e) => {
-                            setBalanceDisplay(e.target.value);
-                            setBalanceCents(parseCurrencyInput(e.target.value));
-                          }}
-                          className="pl-7 h-9 text-sm"
+                          value={editBalanceInput.display}
+                          onChange={editBalanceInput.handleChange}
+                          onBlur={editBalanceInput.handleBlur}
+                          className="pl-7 h-9 text-sm bg-input border-border font-numeric"
                         />
                       </div>
                       <Button
                         size="sm"
                         onClick={() => handleSetBalance(u.uid)}
                         disabled={settingBalance}
+                        disabled={settingBalance}
+                        className="gap-1 font-semibold"
                       >
+                        <Check className="w-3.5 h-3.5" />
                         {settingBalance ? 'Saving...' : 'Save'}
                       </Button>
                     </div>

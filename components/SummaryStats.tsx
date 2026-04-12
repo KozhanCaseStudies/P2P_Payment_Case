@@ -26,7 +26,6 @@ export function SummaryStats({
   const monthAgo = getMonthAgoMs();
   const email = currentUserEmail.toLowerCase();
 
-  // Transfer-based income/expense
   let allTimeIn = 0;
   let allTimeOut = 0;
   let monthIn = 0;
@@ -44,7 +43,6 @@ export function SummaryStats({
     }
   }
 
-  // Request-based: paid outgoing = money received, paid incoming = money sent
   for (const r of outgoingRequests) {
     if (r.status === 'paid') {
       allTimeIn += r.amountCents;
@@ -61,16 +59,8 @@ export function SummaryStats({
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      <StatCard
-        label="Last 30 Days"
-        incoming={monthIn}
-        outgoing={monthOut}
-      />
-      <StatCard
-        label="All Time"
-        incoming={allTimeIn}
-        outgoing={allTimeOut}
-      />
+      <StatCard label="Last 30 Days" incoming={monthIn} outgoing={monthOut} />
+      <StatCard label="All Time" incoming={allTimeIn} outgoing={allTimeOut} />
     </div>
   );
 }
@@ -85,24 +75,30 @@ function StatCard({
   outgoing: number;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-3">{label}</p>
-      <div className="space-y-2">
+    <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+      <p className="text-[10px] font-display font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+        {label}
+      </p>
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <TrendingDown className="w-3.5 h-3.5 text-green-600" />
-            <span className="text-xs text-gray-500">Received</span>
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+              <TrendingDown className="w-3 h-3 text-emerald-400" />
+            </div>
+            <span className="text-xs text-muted-foreground">In</span>
           </div>
-          <span className="text-sm font-semibold text-green-600">
+          <span className="font-numeric text-sm font-bold text-emerald-400">
             {formatCurrency(incoming)}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <TrendingUp className="w-3.5 h-3.5 text-red-500" />
-            <span className="text-xs text-gray-500">Sent</span>
+            <div className="w-6 h-6 rounded-lg bg-rose-500/15 flex items-center justify-center">
+              <TrendingUp className="w-3 h-3 text-rose-400" />
+            </div>
+            <span className="text-xs text-muted-foreground">Out</span>
           </div>
-          <span className="text-sm font-semibold text-red-500">
+          <span className="font-numeric text-sm font-bold text-rose-400">
             {formatCurrency(outgoing)}
           </span>
         </div>

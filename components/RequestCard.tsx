@@ -57,40 +57,40 @@ export function RequestCard({ request, variant }: { request: PaymentRequest; var
   return (
     <>
       <div
-        className="bg-white border border-gray-100 rounded-xl p-4 hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer"
+        className="bg-card border border-border rounded-xl p-4 hover:border-border/80 hover:bg-accent/30 transition-all duration-200 cursor-pointer"
         onClick={() => router.push(`/request/${request.id}`)}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-gray-900 truncate">
+              <span className="font-semibold text-foreground truncate">
                 {variant === 'outgoing' ? request.recipientContact : request.senderName}
               </span>
               <StatusBadge status={request.status} />
             </div>
             {variant === 'incoming' && (
-              <p className="text-xs text-gray-500 truncate mt-0.5">{request.senderEmail}</p>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{request.senderEmail}</p>
             )}
             {request.note && (
-              <p className="text-sm text-gray-600 mt-1 truncate">{request.note}</p>
+              <p className="text-sm text-muted-foreground mt-1 truncate">{request.note}</p>
             )}
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-gray-400">{formatDate(request.createdAt)}</span>
+              <span className="text-xs text-muted-foreground/60">{formatDate(request.createdAt)}</span>
               {isPending && <ExpirationCountdown expiresAt={request.expiresAt} />}
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(request.amountCents)}</p>
+            <p className="font-numeric text-lg font-bold text-foreground">{formatCurrency(request.amountCents)}</p>
           </div>
         </div>
 
         {isPending && (
-          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+          <div className="flex gap-2 mt-3 pt-3 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
             {variant === 'outgoing' && (
               <Button
                 size="sm"
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="text-rose-400 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/50"
                 disabled={!!loading}
                 onClick={() => setConfirmAction('cancel')}
               >
@@ -99,13 +99,18 @@ export function RequestCard({ request, variant }: { request: PaymentRequest; var
             )}
             {variant === 'incoming' && (
               <>
-                <Button size="sm" disabled={!!loading} onClick={() => handleAction('pay')}>
+                <Button
+                  size="sm"
+                  className="bg-emerald-500 hover:bg-emerald-500/90 text-white"
+                  disabled={!!loading}
+                  onClick={() => handleAction('pay')}
+                >
                   {loading === 'pay' ? 'Processing...' : `Pay ${formatCurrency(request.amountCents)}`}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  className="text-rose-400 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/50"
                   disabled={!!loading}
                   onClick={() => setConfirmAction('decline')}
                 >
@@ -118,9 +123,9 @@ export function RequestCard({ request, variant }: { request: PaymentRequest; var
       </div>
 
       <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
-        <DialogContent>
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-display">
               {confirmAction === 'cancel' ? 'Cancel this request?' : 'Decline this request?'}
             </DialogTitle>
             <DialogDescription>

@@ -6,7 +6,8 @@ import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { validateContact, validateAmountCents } from '@/lib/validations';
-import { parseCurrencyInput, formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import { useAmountInput } from '@/hooks/useAmountInput';
 import { AddFundsDialog } from '@/components/AddFundsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,15 +29,13 @@ export default function SendMoneyPage() {
   const { user, loading } = useAuth();
   const { wallet } = useWallet(user?.uid ?? null);
   const [recipient, setRecipient] = useState('');
-  const [amountDisplay, setAmountDisplay] = useState('');
-  const [amountCents, setAmountCents] = useState(0);
+  const amountInput = useAmountInput();
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [transferState, setTransferState] = useState<'idle' | 'sending' | 'success'>('idle');
 
-  // Pre-fill from URL params (quick action repeat)
   useEffect(() => {
     const to = searchParams.get('to');
     const amount = searchParams.get('amount');
@@ -44,18 +43,16 @@ export default function SendMoneyPage() {
     if (to) setRecipient(to);
     if (amount) {
       const cents = parseInt(amount, 10);
-      if (!isNaN(cents) && cents > 0) {
-        setAmountCents(cents);
-        setAmountDisplay((cents / 100).toFixed(2));
-      }
+      if (!isNaN(cents) && cents > 0) amountInput.setAmount(cents);
     }
-    if (prefillNote) setNote(prefillNote);
+    if (prefillNote) setNote(prefillNote.slice(0, 280));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -66,17 +63,19 @@ export default function SendMoneyPage() {
   }
 
   const balanceCents = wallet?.balanceCents ?? 0;
+  const amountCents = amountInput.cents;
   const insufficientFunds = amountCents > 0 && amountCents > balanceCents;
 
   function validateForm(): boolean {
     const newErrors: FormErrors = {};
 
-    if (!recipient.trim()) {
+    const recipientTrimmed = recipient.trim();
+    if (!recipientTrimmed) {
       newErrors.recipient = 'Please enter an email or phone number';
-    } else if (!validateContact(recipient.trim())) {
+    } else if (!validateContact(recipientTrimmed)) {
       newErrors.recipient =
         'Please enter a valid email (e.g. john@example.com) or phone number (e.g. +14155552671)';
-    } else if (recipient.trim().toLowerCase() === user!.email?.toLowerCase()) {
+    } else if (recipientTrimmed.toLowerCase() === user!.email?.toLowerCase()) {
       newErrors.recipient = "You can't send money to yourself.";
     }
 
@@ -96,19 +95,6 @@ export default function SendMoneyPage() {
     return Object.keys(newErrors).length === 0;
   }
 
-  function handleAmountBlur() {
-    if (amountCents > 0) {
-      setAmountDisplay(formatCurrency(amountCents).replace('$', ''));
-    }
-  }
-
-  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value;
-    setAmountDisplay(raw);
-    setAmountCents(parseCurrencyInput(raw));
-    if (errors.amount) setErrors((prev) => ({ ...prev, amount: undefined }));
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateForm()) return;
@@ -125,7 +111,7 @@ export default function SendMoneyPage() {
         },
         body: JSON.stringify({
           recipientContact: recipient.trim(),
-          amountCents,
+          amountCents: amountInput.cents,
           note: note.trim() || undefined,
         }),
       });
@@ -137,7 +123,6 @@ export default function SendMoneyPage() {
         return;
       }
 
-      // Show success animation for 2 seconds, then redirect
       setTransferState('success');
       setTimeout(() => {
         toast.success(`Sent ${formatCurrency(amountCents)}!`);
@@ -153,27 +138,27 @@ export default function SendMoneyPage() {
 
   if (transferState !== 'idle') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           {transferState === 'sending' ? (
             <>
-              <div className="relative w-20 h-20 mx-auto mb-6">
-                <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
-                <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Send className="w-7 h-7 text-blue-600 animate-pulse" />
+                  <Send className="w-7 h-7 text-primary animate-pulse" />
                 </div>
               </div>
-              <p className="text-lg font-semibold text-gray-900">Sending {formatCurrency(amountCents)}</p>
-              <p className="text-sm text-gray-500 mt-1">to {recipient}</p>
+              <p className="font-display text-lg font-bold text-foreground">Sending {formatCurrency(amountCents)}</p>
+              <p className="text-sm text-muted-foreground mt-1">to {recipient}</p>
             </>
           ) : (
             <>
-              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center animate-[scale-in_0.3s_ease-out]">
-                <Check className="w-10 h-10 text-green-600" strokeWidth={3} />
+              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-emerald-500/20 flex items-center justify-center animate-[scale-in_0.3s_ease-out]">
+                <Check className="w-10 h-10 text-emerald-400" strokeWidth={2.5} />
               </div>
-              <p className="text-lg font-semibold text-gray-900">Money Sent!</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="font-display text-lg font-bold text-foreground">Money Sent!</p>
+              <p className="text-sm text-muted-foreground mt-1">
                 {formatCurrency(amountCents)} to {recipient}
               </p>
             </>
@@ -184,23 +169,24 @@ export default function SendMoneyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-lg mx-auto px-4 py-8">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Send Money</h1>
-          <p className="text-sm text-gray-500 mb-6">
-            Balance: <span className={`font-semibold ${balanceCents > 0 ? 'text-green-700' : 'text-gray-500'}`}>
+        <div className="bg-card rounded-2xl border border-border p-8">
+          <h1 className="font-display text-2xl font-bold text-foreground mb-1">Send Money</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Balance:{' '}
+            <span className={`font-numeric font-semibold ${balanceCents > 0 ? 'text-emerald-400' : 'text-muted-foreground'}`}>
               {formatCurrency(balanceCents)}
             </span>
             <button
-              className="ml-2 text-blue-600 hover:underline text-xs"
+              className="ml-2 text-primary hover:text-primary/80 text-xs font-medium transition-colors"
               onClick={() => setAddFundsOpen(true)}
             >
               Add Funds
@@ -209,7 +195,7 @@ export default function SendMoneyPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Send to</label>
+              <label className="block text-sm font-medium text-foreground/80 mb-1">Send to</label>
               <Input
                 type="text"
                 placeholder="email@example.com or +14155552671"
@@ -218,10 +204,10 @@ export default function SendMoneyPage() {
                   setRecipient(e.target.value);
                   if (errors.recipient) setErrors((p) => ({ ...p, recipient: undefined }));
                 }}
-                className={errors.recipient ? 'border-red-500' : ''}
+                className={`bg-input border-border ${errors.recipient ? 'border-destructive' : ''}`}
               />
               <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   Enter an email address or E.164 phone number
                 </p>
                 <ContactPicker
@@ -233,26 +219,29 @@ export default function SendMoneyPage() {
                 />
               </div>
               {errors.recipient && (
-                <p className="mt-1 text-sm text-red-600">{errors.recipient}</p>
+                <p className="mt-1 text-sm text-destructive">{errors.recipient}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+              <label className="block text-sm font-medium text-foreground/80 mb-1">Amount</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">$</span>
                 <Input
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
-                  value={amountDisplay}
-                  onChange={handleAmountChange}
-                  onBlur={handleAmountBlur}
-                  className={`pl-7 ${errors.amount || insufficientFunds ? 'border-red-500' : ''}`}
+                  value={amountInput.display}
+                  onChange={(e) => {
+                    amountInput.handleChange(e);
+                    if (errors.amount) setErrors((p) => ({ ...p, amount: undefined }));
+                  }}
+                  onBlur={amountInput.handleBlur}
+                  className={`pl-7 bg-input border-border font-numeric ${errors.amount || insufficientFunds ? 'border-destructive' : ''}`}
                 />
               </div>
               {insufficientFunds && !errors.amount && (
-                <p className="mt-1 text-sm text-amber-600">
+                <p className="mt-1 text-sm text-amber-400">
                   Insufficient balance.{' '}
                   <button type="button" className="underline" onClick={() => setAddFundsOpen(true)}>
                     Add funds
@@ -260,31 +249,32 @@ export default function SendMoneyPage() {
                 </p>
               )}
               {errors.amount && (
-                <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+                <p className="mt-1 text-sm text-destructive">{errors.amount}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Note <span className="text-gray-400 font-normal">(optional)</span>
+              <label className="block text-sm font-medium text-foreground/80 mb-1">
+                Note <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Textarea
                 placeholder="What's this for?"
                 value={note}
+                maxLength={280}
                 onChange={(e) => {
                   setNote(e.target.value);
                   if (errors.note) setErrors((p) => ({ ...p, note: undefined }));
                 }}
                 rows={3}
-                className={`resize-none ${errors.note ? 'border-red-500' : ''}`}
+                className={`resize-none bg-input border-border ${errors.note ? 'border-destructive' : ''}`}
               />
               <div className="flex justify-between mt-1">
                 {errors.note ? (
-                  <p className="text-sm text-red-600">{errors.note}</p>
+                  <p className="text-sm text-destructive">{errors.note}</p>
                 ) : (
                   <span />
                 )}
-                <span className={`text-xs ${note.length > 260 ? 'text-amber-600' : 'text-gray-400'}`}>
+                <span className={`text-xs ${note.length > 260 ? 'text-amber-400' : 'text-muted-foreground'}`}>
                   {note.length}/280
                 </span>
               </div>
@@ -292,7 +282,7 @@ export default function SendMoneyPage() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full font-display font-semibold"
               size="lg"
               disabled={submitting || insufficientFunds}
             >

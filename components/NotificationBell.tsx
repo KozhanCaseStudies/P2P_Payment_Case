@@ -16,11 +16,11 @@ const ICON_MAP: Record<Notification['type'], typeof DollarSign> = {
 };
 
 const COLOR_MAP: Record<Notification['type'], string> = {
-  request_received: 'bg-blue-50 text-blue-600',
-  request_paid: 'bg-green-50 text-green-600',
-  request_declined: 'bg-red-50 text-red-600',
-  request_cancelled: 'bg-gray-100 text-gray-500',
-  transfer_received: 'bg-green-50 text-green-600',
+  request_received: 'bg-blue-500/15 text-blue-400',
+  request_paid: 'bg-emerald-500/15 text-emerald-400',
+  request_declined: 'bg-rose-500/15 text-rose-400',
+  request_cancelled: 'bg-muted text-muted-foreground',
+  transfer_received: 'bg-emerald-500/15 text-emerald-400',
 };
 
 function timeAgo(timestamp: { toMillis: () => number }): string {
@@ -79,45 +79,47 @@ export function NotificationBell({ userId }: { userId: string }) {
     <div className="relative" ref={ref}>
       <button
         onClick={handleOpen}
-        className="relative text-gray-400 hover:text-gray-700 p-1"
+        className="relative text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-accent transition-colors"
         title="Notifications"
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 max-h-96 overflow-y-auto">
-          <div className="px-4 py-3 border-b border-gray-50">
-            <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+        <div className="absolute right-0 top-full mt-2 w-80 bg-card rounded-xl shadow-2xl border border-border z-50 max-h-96 overflow-y-auto">
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-display font-semibold text-foreground">Notifications</h3>
           </div>
 
           {notifications.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No notifications yet
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-border/50">
               {notifications.slice(0, 20).map((n) => {
                 const Icon = ICON_MAP[n.type];
                 const colorClass = COLOR_MAP[n.type];
                 return (
                   <div
                     key={n.id}
-                    className={`px-4 py-3 flex items-start gap-3 ${!n.read ? 'bg-blue-50/30' : ''}`}
+                    className={`px-4 py-3 flex items-start gap-3 transition-colors ${
+                      !n.read ? 'bg-primary/5' : 'hover:bg-muted/50'
+                    }`}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
-                      <Icon className="w-4 h-4" />
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}>
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">{n.body}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{timeAgo(n.createdAt)}</p>
+                      <p className="text-sm text-foreground leading-snug">{n.body}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(n.createdAt)}</p>
                     </div>
-                    <span className="text-sm font-semibold text-gray-700 shrink-0">
+                    <span className="font-numeric text-sm font-semibold text-foreground shrink-0">
                       {formatCurrency(n.amountCents)}
                     </span>
                   </div>

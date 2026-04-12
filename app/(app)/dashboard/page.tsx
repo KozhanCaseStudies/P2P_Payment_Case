@@ -20,7 +20,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, LogOut, Wallet, Send, Settings } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  LogOut,
+  Send,
+  Settings,
+  ArrowDownLeft,
+  ArrowUpRight,
+  History,
+  ChevronRight,
+} from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_OPTIONS: { label: string; value: 'all' | RequestStatus }[] = [
@@ -51,7 +61,7 @@ function filterRequests(
 
 function CardSkeleton() {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+    <div className="bg-card border border-border rounded-xl p-4 space-y-3">
       <div className="flex justify-between">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-5 w-16" />
@@ -82,7 +92,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -94,45 +104,35 @@ export default function DashboardPage() {
 
   const filteredOutgoing = filterRequests(outgoing, search, statusFilter);
   const filteredIncoming = filterRequests(incoming, search, statusFilter);
+  const pendingIncomingCount = incoming.filter((r) => r.status === 'pending').length;
 
   async function handleSignOut() {
     await signOut(auth);
     router.replace('/login');
   }
 
+  const displayName = user.displayName?.split(' ')[0] ?? user.email?.split('@')[0] ?? 'there';
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">PayRequest</h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setAddFundsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 transition-colors"
-              title="Add Funds"
-            >
-              <Wallet className="w-4 h-4 text-green-700" />
-              <span className={`text-sm font-semibold ${wallet && wallet.balanceCents > 0 ? 'text-green-700' : 'text-gray-500'}`}>
-                {wallet ? formatCurrency(wallet.balanceCents) : '...'}
-              </span>
-            </button>
-            <Link href="/send">
-              <Button size="sm" variant="outline" className="gap-1">
-                <Send className="w-4 h-4" /> Send
-              </Button>
-            </Link>
-            <Link href="/request/new">
-              <Button size="sm" className="gap-1">
-                <Plus className="w-4 h-4" /> Request
-              </Button>
-            </Link>
+    <div className="min-h-screen">
+      {/* ── Header ───────────────────────────────────── */}
+      <header className="glass sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto px-4 py-3.5 flex items-center justify-between">
+          <span className="font-display text-lg font-bold tracking-tight text-foreground">
+            Pay<span className="text-primary">•</span>Request
+          </span>
+          <div className="flex items-center gap-1">
             <NotificationBell userId={user.uid} />
-            <Link href="/admin" className="text-gray-400 hover:text-gray-700 p-1" title="Admin Panel">
+            <Link
+              href="/admin"
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-accent transition-colors"
+              title="Admin Panel"
+            >
               <Settings className="w-4 h-4" />
             </Link>
             <button
               onClick={handleSignOut}
-              className="text-gray-400 hover:text-gray-700 p-1"
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-accent transition-colors"
               title="Sign out"
             >
               <LogOut className="w-4 h-4" />
@@ -143,21 +143,95 @@ export default function DashboardPage() {
 
       <AddFundsDialog open={addFundsOpen} onOpenChange={setAddFundsOpen} />
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        <div className="flex gap-2">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+        {/* ── Balance Hero ─────────────────────────── */}
+        <div className="animate-fade-up" style={{ animationDelay: '0ms' }}>
+          <p className="text-sm text-muted-foreground mb-4">
+            Good to see you, <span className="text-foreground font-medium">{displayName}</span>
+          </p>
+          <div className="relative bg-card border border-border rounded-2xl p-5 overflow-hidden card-glow transition-all duration-300">
+            {/* Decorative glow */}
+            <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-primary/5 blur-2xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
+            <div className="relative">
+              <p className="text-xs font-display font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">
+                Available Balance
+              </p>
+              <div className="flex items-end justify-between gap-4">
+                <p className="font-numeric text-4xl font-bold text-foreground tracking-tight">
+                  {wallet ? formatCurrency(wallet.balanceCents) : (
+                    <span className="opacity-30">——</span>
+                  )}
+                </p>
+                <button
+                  onClick={() => setAddFundsOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Funds
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Action Tiles ─────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 animate-fade-up" style={{ animationDelay: '60ms' }}>
+          <Link href="/send" className="block">
+            <div className="bg-primary rounded-2xl p-5 flex flex-col gap-3 hover:brightness-110 active:scale-[0.98] transition-all duration-200 cursor-pointer h-full">
+              <div className="w-10 h-10 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
+                <ArrowUpRight className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="font-display font-bold text-lg text-primary-foreground leading-none mb-0.5">Send</p>
+                <p className="text-xs text-primary-foreground/60">Transfer money</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link href="/request/new" className="block">
+            <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:border-primary/30 hover:bg-accent active:scale-[0.98] transition-all duration-200 cursor-pointer h-full group">
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                <ArrowDownLeft className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+              <div>
+                <p className="font-display font-bold text-lg text-foreground leading-none mb-0.5">Request</p>
+                <p className="text-xs text-muted-foreground">Ask for money</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* ── Summary Stats ────────────────────────── */}
+        <div className="animate-fade-up" style={{ animationDelay: '120ms' }}>
+          <SummaryStats
+            transfers={transfers}
+            outgoingRequests={outgoing}
+            incomingRequests={incoming}
+            currentUserEmail={user.email ?? ''}
+          />
+        </div>
+
+        {/* ── Quick Actions ────────────────────────── */}
+        <div className="animate-fade-up" style={{ animationDelay: '160ms' }}>
+          <QuickActions userId={user.uid} />
+        </div>
+
+        {/* ── Search & Filter ──────────────────────── */}
+        <div className="flex gap-2 animate-fade-up" style={{ animationDelay: '200ms' }}>
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search by name or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 bg-card border-border"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'all' | RequestStatus)}
-            className="border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-border rounded-md px-3 py-2 text-sm text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -165,103 +239,111 @@ export default function DashboardPage() {
           </select>
         </div>
 
-        <SummaryStats
-          transfers={transfers}
-          outgoingRequests={outgoing}
-          incomingRequests={incoming}
-          currentUserEmail={user.email ?? ''}
-        />
+        {/* ── Requests Tabs ────────────────────────── */}
+        <div className="animate-fade-up" style={{ animationDelay: '240ms' }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-display font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Requests
+            </p>
+            <Link
+              href="/history"
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+            >
+              <History className="w-3.5 h-3.5" />
+              Full History
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
 
-        <QuickActions userId={user.uid} />
+          <Tabs defaultValue="outgoing">
+            <TabsList className="w-full bg-card border border-border">
+              <TabsTrigger value="outgoing" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
+                Sent
+                {outgoing.length > 0 && (
+                  <span className="ml-1.5 text-[10px] bg-current/20 rounded-full px-1.5 py-0.5 leading-none">
+                    {outgoing.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="incoming" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
+                Received
+                {pendingIncomingCount > 0 && (
+                  <span className="ml-1.5 text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5 leading-none">
+                    {pendingIncomingCount}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
+                Transfers
+                {transfers.length > 0 && (
+                  <span className="ml-1.5 text-[10px] bg-current/20 rounded-full px-1.5 py-0.5 leading-none">
+                    {transfers.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-        <div className="flex justify-end">
-          <Link href="/history" className="text-xs text-blue-600 hover:text-blue-800">
-            View full transaction history →
-          </Link>
+            <TabsContent value="outgoing" className="space-y-2.5 mt-3">
+              {outLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
+              ) : filteredOutgoing.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  {search || statusFilter !== 'all' ? (
+                    <p className="text-sm">No requests match your filter.</p>
+                  ) : (
+                    <>
+                      <p className="text-sm mb-3">You haven&apos;t sent any requests yet.</p>
+                      <Link href="/request/new">
+                        <Button variant="outline" size="sm" className="border-border">
+                          Send a Request →
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </div>
+              ) : (
+                filteredOutgoing.map((r) => <RequestCard key={r.id} request={r} variant="outgoing" />)
+              )}
+            </TabsContent>
+
+            <TabsContent value="incoming" className="space-y-2.5 mt-3">
+              {inLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
+              ) : filteredIncoming.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  {search || statusFilter !== 'all' ? (
+                    <p className="text-sm">No requests match your filter.</p>
+                  ) : (
+                    <p className="text-sm">No one has requested money from you.</p>
+                  )}
+                </div>
+              ) : (
+                filteredIncoming.map((r) => <RequestCard key={r.id} request={r} variant="incoming" />)
+              )}
+            </TabsContent>
+
+            <TabsContent value="activity" className="space-y-2.5 mt-3">
+              {transfersLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
+              ) : transfers.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <p className="text-sm mb-3">No transfers yet.</p>
+                  <Link href="/send">
+                    <Button variant="outline" size="sm" className="border-border">
+                      Send Money →
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                transfers.map((t) => (
+                  <TransferCard key={t.id} transfer={t} currentUserEmail={user.email ?? ''} />
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
 
-        <Tabs defaultValue="outgoing">
-          <TabsList className="w-full">
-            <TabsTrigger value="outgoing" className="flex-1">
-              Outgoing
-              {outgoing.length > 0 && (
-                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-                  {outgoing.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="incoming" className="flex-1">
-              Incoming
-              {incoming.filter((r) => r.status === 'pending').length > 0 && (
-                <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5">
-                  {incoming.filter((r) => r.status === 'pending').length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="flex-1">
-              Activity
-              {transfers.length > 0 && (
-                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-                  {transfers.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="outgoing" className="space-y-3 mt-4">
-            {outLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
-            ) : filteredOutgoing.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                {search || statusFilter !== 'all' ? (
-                  <p>No requests match your filter.</p>
-                ) : (
-                  <>
-                    <p className="mb-3">You haven&apos;t sent any requests yet.</p>
-                    <Link href="/request/new">
-                      <Button variant="outline" size="sm">Send a Request →</Button>
-                    </Link>
-                  </>
-                )}
-              </div>
-            ) : (
-              filteredOutgoing.map((r) => <RequestCard key={r.id} request={r} variant="outgoing" />)
-            )}
-          </TabsContent>
-
-          <TabsContent value="incoming" className="space-y-3 mt-4">
-            {inLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
-            ) : filteredIncoming.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                {search || statusFilter !== 'all' ? (
-                  <p>No requests match your filter.</p>
-                ) : (
-                  <p>No one has requested money from you.</p>
-                )}
-              </div>
-            ) : (
-              filteredIncoming.map((r) => <RequestCard key={r.id} request={r} variant="incoming" />)
-            )}
-          </TabsContent>
-
-          <TabsContent value="activity" className="space-y-3 mt-4">
-            {transfersLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
-            ) : transfers.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                <p className="mb-3">No transfers yet.</p>
-                <Link href="/send">
-                  <Button variant="outline" size="sm">Send Money →</Button>
-                </Link>
-              </div>
-            ) : (
-              transfers.map((t) => (
-                <TransferCard key={t.id} transfer={t} currentUserEmail={user.email ?? ''} />
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
+        <div className="pb-6" />
       </div>
     </div>
   );

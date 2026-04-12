@@ -39,7 +39,6 @@ export default function HistoryPage() {
       items.push({ kind: 'request', data: r, timestamp: r.createdAt.toMillis() });
     }
 
-    // Deduplicate requests (might appear in both outgoing and incoming)
     const seen = new Set<string>();
     const unique = items.filter((item) => {
       const id = item.kind === 'transfer' ? `t-${item.data.id}` : `r-${item.data.id}`;
@@ -56,7 +55,7 @@ export default function HistoryPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -69,21 +68,21 @@ export default function HistoryPage() {
   const email = user.email?.toLowerCase() ?? '';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Transaction History</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-6">Transaction History</h1>
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 space-y-2">
+              <div key={i} className="bg-card rounded-xl border border-border p-4 space-y-2">
                 <div className="flex justify-between">
                   <Skeleton className="h-4 w-48" />
                   <Skeleton className="h-4 w-20" />
@@ -93,8 +92,8 @@ export default function HistoryPage() {
             ))}
           </div>
         ) : timeline.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <p>No transactions yet.</p>
+          <div className="text-center py-16 text-muted-foreground">
+            <p className="text-sm">No transactions yet.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -103,25 +102,33 @@ export default function HistoryPage() {
                 const t = item.data;
                 const isSent = t.senderEmail.toLowerCase() === email;
                 return (
-                  <div key={`t-${t.id}`} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isSent ? 'bg-red-50' : 'bg-green-50'}`}>
-                      {isSent ? <ArrowUpRight className="w-4 h-4 text-red-600" /> : <ArrowDownLeft className="w-4 h-4 text-green-600" />}
+                  <div
+                    key={`t-${t.id}`}
+                    className="bg-card rounded-xl border border-border p-4 flex items-center gap-3"
+                  >
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      isSent ? 'bg-rose-500/15' : 'bg-emerald-500/15'
+                    }`}>
+                      {isSent
+                        ? <ArrowUpRight className="w-4 h-4 text-rose-400" />
+                        : <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+                      }
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-display font-semibold uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                           Transfer
                         </span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-muted-foreground/60">
                           {formatTimestamp(item.timestamp)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-900 truncate mt-0.5">
+                      <p className="text-sm text-foreground truncate mt-0.5">
                         {isSent ? `Sent to ${t.recipientContact}` : `Received from ${t.senderName}`}
                       </p>
-                      {t.note && <p className="text-xs text-gray-500 truncate">{t.note}</p>}
+                      {t.note && <p className="text-xs text-muted-foreground truncate">{t.note}</p>}
                     </div>
-                    <span className={`text-sm font-bold shrink-0 ${isSent ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className={`font-numeric text-sm font-bold shrink-0 ${isSent ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {isSent ? '-' : '+'}{formatCurrency(t.amountCents)}
                     </span>
                   </div>
@@ -131,30 +138,35 @@ export default function HistoryPage() {
                 const isOutgoing = r.senderId === user.uid;
                 return (
                   <Link key={`r-${r.id}`} href={`/request/${r.id}`}>
-                    <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3 hover:border-gray-200 transition-colors">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOutgoing ? 'bg-blue-50' : 'bg-purple-50'}`}>
-                        {isOutgoing ? <Send className="w-4 h-4 text-blue-600" /> : <FileText className="w-4 h-4 text-purple-600" />}
+                    <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3 hover:border-border/80 hover:bg-accent/30 transition-all duration-200 cursor-pointer">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        isOutgoing ? 'bg-blue-500/15' : 'bg-purple-500/15'
+                      }`}>
+                        {isOutgoing
+                          ? <Send className="w-4 h-4 text-blue-400" />
+                          : <FileText className="w-4 h-4 text-purple-400" />
+                        }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-display font-semibold uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                             Request
                           </span>
                           <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${statusColor(r.status)}`}>
                             {r.status}
                           </span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-muted-foreground/60">
                             {formatTimestamp(item.timestamp)}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-900 truncate mt-0.5">
+                        <p className="text-sm text-foreground truncate mt-0.5">
                           {isOutgoing
                             ? `Requested from ${r.recipientContact}`
                             : `${r.senderName} requested`}
                         </p>
-                        {r.note && <p className="text-xs text-gray-500 truncate">{r.note}</p>}
+                        {r.note && <p className="text-xs text-muted-foreground truncate">{r.note}</p>}
                       </div>
-                      <span className="text-sm font-bold text-gray-700 shrink-0">
+                      <span className="font-numeric text-sm font-bold text-foreground shrink-0">
                         {formatCurrency(r.amountCents)}
                       </span>
                     </div>
@@ -186,11 +198,11 @@ function formatTimestamp(ms: number): string {
 
 function statusColor(status: string): string {
   switch (status) {
-    case 'pending': return 'bg-amber-50 text-amber-700';
-    case 'paid': return 'bg-green-50 text-green-700';
-    case 'declined': return 'bg-red-50 text-red-700';
-    case 'expired': return 'bg-gray-100 text-gray-500';
-    case 'cancelled': return 'bg-gray-100 text-gray-500';
-    default: return 'bg-gray-100 text-gray-500';
+    case 'pending': return 'bg-amber-500/15 text-amber-400';
+    case 'paid': return 'bg-emerald-500/15 text-emerald-400';
+    case 'declined': return 'bg-rose-500/15 text-rose-400';
+    case 'expired': return 'bg-muted text-muted-foreground';
+    case 'cancelled': return 'bg-muted text-muted-foreground';
+    default: return 'bg-muted text-muted-foreground';
   }
 }
