@@ -33,28 +33,41 @@ export async function POST(req: NextRequest) {
 
   const { recipientContact, amountCents, note } = body;
 
-  if (typeof recipientContact !== 'string' || !validateContact(recipientContact)) {
+  // Sanitize & validate recipient
+  const recipient =
+    typeof recipientContact === 'string' ? recipientContact.trim() : '';
+  if (!recipient || !validateContact(recipient)) {
     return NextResponse.json(
       { error: 'Please enter a valid email or phone number (e.g. +14155552671)' },
       { status: 400 }
     );
   }
 
-  if (typeof amountCents !== 'number' || !validateAmountCents(amountCents)) {
+  // Sanitize & validate amount — must be a positive integer (cents)
+  const safeCents =
+    typeof amountCents === 'number' ? Math.trunc(amountCents) : NaN;
+  if (!Number.isFinite(safeCents) || !validateAmountCents(safeCents)) {
     return NextResponse.json(
       { error: 'Amount must be between $0.01 and $10,000.00' },
       { status: 400 }
     );
   }
 
-  if (note !== undefined && (typeof note !== 'string' || !validateNote(note))) {
+  // Sanitize & validate note
+  const noteText =
+    note !== undefined
+      ? typeof note === 'string'
+        ? note.trim().slice(0, 280)
+        : null
+      : undefined;
+  if (noteText === null) {
     return NextResponse.json(
-      { error: 'Note must be 280 characters or less' },
+      { error: 'Note must be a string' },
       { status: 400 }
     );
   }
 
-  if (validateEmail(recipientContact) && recipientContact.toLowerCase() === userEmail.toLowerCase()) {
+  if (validateEmail(recipient) && recipient.toLowerCase() === userEmail.toLowerCase()) {
     return NextResponse.json(
       { error: "You can't send money to yourself." },
       { status: 400 }
@@ -67,9 +80,9 @@ export async function POST(req: NextRequest) {
 
   // Find recipient — must be a registered user
   let recipientUid: string;
-  if (validateEmail(recipientContact)) {
+  if (validateEmail(recipient)) {
     const usersSnap = await adminDb.collection('users')
-      .where('email', '==', recipientContact.toLowerCase())
+      .where('email', '==', recipient.toLowerCase())
       .limit(1)
       .get();
     if (usersSnap.empty) {
@@ -80,9 +93,8 @@ export async function POST(req: NextRequest) {
     }
     recipientUid = usersSnap.docs[0].id;
   } else {
-    // Phone number — look up by phone
     const usersSnap = await adminDb.collection('users')
-      .where('phone', '==', recipientContact)
+      .where('phone', '==', recipient)
       .limit(1)
       .get();
     if (usersSnap.empty) {
@@ -104,25 +116,25 @@ export async function POST(req: NextRequest) {
       ]);
 
       const senderBalance = senderSnap.exists ? senderSnap.data()!.balanceCents : 0;
-      if (senderBalance < amountCents) {
+      if (senderBalance < safeCents) {
         throw new Error('Insufficient balance. Please add funds.');
       }
 
       // All writes after reads
       tx.update(senderWalletRef, {
-        balanceCents: FieldValue.increment(-amountCents),
+        balanceCents: FieldValue.increment(-safeCents),
         updatedAt: Timestamp.now(),
       });
 
       if (recipientSnap.exists) {
         tx.update(recipientWalletRef, {
-          balanceCents: FieldValue.increment(amountCents),
+          balanceCents: FieldValue.increment(safeCents),
           updatedAt: Timestamp.now(),
         });
       } else {
         tx.set(recipientWalletRef, {
           uid: recipientUid,
-          balanceCents: amountCents,
+          balanceCents: safeCents,
           updatedAt: Timestamp.now(),
         });
       }
@@ -132,16 +144,16 @@ export async function POST(req: NextRequest) {
         senderId: uid,
         senderEmail: userEmail,
         senderName: userName,
-        recipientContact,
+        recipientContact: recipient,
         recipientUid,
-        amountCents,
-        ...(note ? { note } : {}),
+        amountCents: safeCents,
+        ...(noteText ? { note: noteText } : {}),
         createdAt: Timestamp.now(),
       });
     });
 
     // Auto-save contact (non-blocking)
-    autoSaveContact(uid, recipientContact).catch(() => {});
+    autoSaveContact(uid, recipient).catch(() => {});
 
     // Create notification for recipient (non-blocking)
     if (recipientUid) {
@@ -149,8 +161,8 @@ export async function POST(req: NextRequest) {
         recipientUid,
         type: 'transfer_received',
         title: 'Money Received',
-        body: `${userName} sent you ${formatAmountForNotification(amountCents)}`,
-        amountCents,
+        body: `${userName} sent you ${formatAmountForNotification(safeCents)}`,
+        amountCents: safeCents,
         relatedId: transferRef.id,
       }).catch(() => {});
     }

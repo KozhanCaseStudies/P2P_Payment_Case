@@ -51,8 +51,19 @@ export function getCountdownText(expiresAt: Timestamp): string {
 }
 
 export function parseCurrencyInput(value: string): number {
-  const cleaned = value.replace(/[^0-9.]/g, '')
-  const parsed = parseFloat(cleaned)
-  if (isNaN(parsed)) return 0
-  return Math.round(parsed * 100)
+  // Strip everything except digits and decimal point
+  const cleaned = value.replace(/[^\d.]/g, '');
+  if (!cleaned || cleaned === '.') return 0;
+
+  // Split on decimal — take only first two decimal digits
+  const parts = cleaned.split('.');
+  const normalized =
+    parts.length === 1
+      ? parts[0]
+      : parts[0] + '.' + (parts[1] ?? '').slice(0, 2);
+
+  const parsed = parseFloat(normalized);
+  if (isNaN(parsed) || parsed < 0) return 0;
+  // Math.round to avoid floating-point drift (e.g. 1.005 * 100 = 100.50000...001)
+  return Math.round(parsed * 100);
 }

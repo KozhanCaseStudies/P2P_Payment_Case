@@ -37,28 +37,41 @@ export async function POST(req: NextRequest) {
 
   const { recipientContact, amountCents, note } = body;
 
-  if (typeof recipientContact !== 'string' || !validateContact(recipientContact)) {
+  // Sanitize & validate recipient
+  const recipient =
+    typeof recipientContact === 'string' ? recipientContact.trim() : '';
+  if (!recipient || !validateContact(recipient)) {
     return NextResponse.json(
       { error: 'Please enter a valid email or phone number (e.g. +14155552671)' },
       { status: 400 }
     );
   }
 
-  if (typeof amountCents !== 'number' || !validateAmountCents(amountCents)) {
+  // Sanitize & validate amount — must be a positive integer (cents)
+  const safeCents =
+    typeof amountCents === 'number' ? Math.trunc(amountCents) : NaN;
+  if (!Number.isFinite(safeCents) || !validateAmountCents(safeCents)) {
     return NextResponse.json(
       { error: 'Amount must be between $0.01 and $10,000.00' },
       { status: 400 }
     );
   }
 
-  if (note !== undefined && (typeof note !== 'string' || !validateNote(note))) {
+  // Sanitize & validate note
+  const noteText =
+    note !== undefined
+      ? typeof note === 'string'
+        ? note.trim().slice(0, 280)
+        : null
+      : undefined;
+  if (noteText === null) {
     return NextResponse.json(
-      { error: 'Note must be 280 characters or less' },
+      { error: 'Note must be a string' },
       { status: 400 }
     );
   }
 
-  if (validateEmail(recipientContact) && recipientContact.toLowerCase() === userEmail.toLowerCase()) {
+  if (validateEmail(recipient) && recipient.toLowerCase() === userEmail.toLowerCase()) {
     return NextResponse.json(
       { error: "You can't request money from yourself." },
       { status: 400 }
@@ -75,9 +88,9 @@ export async function POST(req: NextRequest) {
       senderId: uid,
       senderEmail: userEmail,
       senderName: userName,
-      recipientContact,
-      amountCents,
-      ...(note ? { note } : {}),
+      recipientContact: recipient,
+      amountCents: safeCents,
+      ...(noteText ? { note: noteText } : {}),
       status: 'pending',
       shareableLink: `${appUrl}/request/${ref.id}`,
       createdAt: Timestamp.fromDate(now),
@@ -89,9 +102,11 @@ export async function POST(req: NextRequest) {
     autoSaveContact(uid, recipientContact).catch(() => {});
 
     // Notify recipient if they have an account
-    if (validateEmail(recipientContact)) {
+    autoSaveContact(uid, recipient).catch(() => {});
+
+    if (validateEmail(recipient)) {
       const recipientSnap = await adminDb.collection('users')
-        .where('email', '==', recipientContact.toLowerCase())
+        .where('email', '==', recipient.toLowerCase())
         .limit(1)
         .get();
       if (!recipientSnap.empty) {
@@ -99,8 +114,8 @@ export async function POST(req: NextRequest) {
           recipientUid: recipientSnap.docs[0].id,
           type: 'request_received',
           title: 'Payment Request',
-          body: `${userName} is requesting ${formatAmountForNotification(amountCents)}`,
-          amountCents,
+          body: `${userName} is requesting ${formatAmountForNotification(safeCents)}`,
+          amountCents: safeCents,
           relatedId: ref.id,
         }).catch(() => {});
       }
