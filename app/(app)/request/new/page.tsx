@@ -1,13 +1,11 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { validateContact, validateAmountCents } from '@/lib/validations';
-import { formatCurrency } from '@/lib/utils';
 import { useAmountInput } from '@/hooks/useAmountInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +21,7 @@ interface FormErrors {
   note?: string;
 }
 
-export default function NewRequestPage() {
+function NewRequestForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
@@ -230,5 +228,17 @@ export default function NewRequestPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewRequestPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <NewRequestForm />
+    </Suspense>
   );
 }

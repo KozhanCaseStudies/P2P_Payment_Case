@@ -1,7 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
@@ -25,7 +24,7 @@ interface FormErrors {
   note?: string;
 }
 
-export default function SendMoneyPage() {
+function SendMoneyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
@@ -296,5 +295,17 @@ export default function SendMoneyPage() {
 
       <AddFundsDialog open={addFundsOpen} onOpenChange={setAddFundsOpen} />
     </div>
+  );
+}
+
+export default function SendMoneyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SendMoneyForm />
+    </Suspense>
   );
 }
