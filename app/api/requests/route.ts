@@ -99,9 +99,6 @@ export async function POST(req: NextRequest) {
     });
 
     // Auto-save contact (non-blocking)
-    autoSaveContact(uid, recipientContact).catch(() => {});
-
-    // Notify recipient if they have an account
     autoSaveContact(uid, recipient).catch(() => {});
 
     if (validateEmail(recipient)) {
