@@ -319,7 +319,6 @@ export default function AdminPage() {
                         size="sm"
                         onClick={() => handleSetBalance(u.uid)}
                         disabled={settingBalance}
-                        disabled={settingBalance}
                         className="gap-1 font-semibold"
                       >
                         <Check className="w-3.5 h-3.5" />
