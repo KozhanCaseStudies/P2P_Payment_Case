@@ -1,13 +1,12 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '@/lib/firebase/client';
 import { signInWithCustomToken } from 'firebase/auth';
 
-export default function TestLoginPage() {
+function TestLoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('Authenticating...');
@@ -41,5 +40,17 @@ export default function TestLoginPage() {
     <div className="min-h-screen flex items-center justify-center">
       <p className="text-muted-foreground text-sm">{status}</p>
     </div>
+  );
+}
+
+export default function TestLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <TestLoginInner />
+    </Suspense>
   );
 }
